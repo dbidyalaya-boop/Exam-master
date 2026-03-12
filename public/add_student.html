@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Student</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0px 5px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; color: #555; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📝 Add New Student & Marks</h2>
+    <form id="addStudentForm">
+        <div class="form-group">
+            <label>Student Name (ପିଲାର ନାମ):</label>
+            <input type="text" id="name" required placeholder="e.g., Suman">
+        </div>
+        <div class="form-group">
+            <label>Roll No (ରୋଲ୍ ନମ୍ବର):</label>
+            <input type="number" id="roll_no" required placeholder="e.g., 5">
+        </div>
+        <div class="form-group">
+            <label>Class (ଶ୍ରେଣୀ):</label>
+            <input type="text" id="class_name" value="10th" required>
+        </div>
+        <div class="form-group">
+            <label>Mathematics Mark (ଗଣିତ ମାର୍କ /100):</label>
+            <input type="number" id="math_marks" required placeholder="0-100">
+        </div>
+        <div class="form-group">
+            <label>Science Mark (ବିଜ୍ଞାନ ମାର୍କ /100):</label>
+            <input type="number" id="science_marks" required placeholder="0-100">
+        </div>
+        
+        <button type="submit">💾 Save to Database</button>
+    </form>
+</div>
+
+<script>
+    // ଫର୍ମ Submit କଲାବେଳେ କ'ଣ ହେବ ତାର ଲଜିକ୍
+    document.getElementById('addStudentForm').addEventListener('submit', function(event) {
+        event.preventDefault(); // ପେଜ୍ କୁ ରିଲୋଡ୍ ହେବାରୁ ଅଟକାଇବା
+        
+        // ଫର୍ମ ରୁ ଡାଟା ସଂଗ୍ରହ କରିବା
+        const newStudentData = {
+            name: document.getElementById('name').value,
+            roll_no: document.getElementById('roll_no').value,
+            class_name: document.getElementById('class_name').value,
+            math_marks: document.getElementById('math_marks').value,
+            science_marks: document.getElementById('science_marks').value
+        };
+
+        // API କୁ ଡାଟା ପଠାଇବା
+        fetch('http://localhost:3000/api/add-student', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newStudentData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert("✅ ଅଭିନନ୍ଦନ! ନୂଆ ପିଲାର ଡାଟା ସଫଳତାର ସହ ସେଭ୍ ହୋଇଗଲା!");
+            document.getElementById('addStudentForm').reset(); // ଫର୍ମ ଖାଲି କରିଦେବା
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("❌ କିଛି ଅସୁବିଧା ହେଲା। ଦୟାକରି ସର୍ଭର ଚେକ୍ କରନ୍ତୁ।");
+        });
+    });
+</script>
+
+</body>
+</html>
