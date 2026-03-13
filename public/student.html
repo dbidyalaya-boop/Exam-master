@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Student Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 700px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0px 5px 15px rgba(0,0,0,0.1); text-align: center; }
+        h2 { color: #2c3e50; }
+        .student-select-box { margin-bottom: 20px; padding: 10px; background: #e9ecef; border-radius: 8px; }
+        select { padding: 8px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; cursor: pointer; outline: none; }
+        canvas { margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎓 Dynamic Student Performance Report</h2>
+    
+    <div class="student-select-box">
+        <label for="studentDropdown"><strong>Select Student: </strong></label>
+        <select id="studentDropdown">
+            </select>
+    </div>
+    
+    <canvas id="marksChart"></canvas>
+</div>
+
+<script>
+    let myChart = null; // ପୁରୁଣା ଗ୍ରାଫ୍ କୁ କ୍ଲିୟର୍ କରିବା ପାଇଁ ଗୋଟିଏ ଭେରିଏବଲ୍
+
+    // ୧. ପ୍ରଥମେ ଡ୍ରପ୍-ଡାଉନ୍ ରେ ସବୁ ପିଲାଙ୍କ ନାମ ଆଣିବା
+    fetch('/api/students')
+        .then(res => res.json())
+        .then(students => {
+            const dropdown = document.getElementById('studentDropdown');
+            students.forEach(student => {
+                let option = document.createElement('option');
+                option.value = student.student_id;
+                option.text = `👨‍🎓 ${student.name}`;
+                dropdown.appendChild(option);
+            });
+
+            // ପେଜ୍ ଖୋଲିବା ମାତ୍ରେ ପ୍ରଥମ ପିଲାର ରେଜଲ୍ଟ ଦେଖାଇବା
+            if(students.length > 0) {
+                loadStudentChart(students[0].student_id);
+            }
+        });
+
+    // ୨. ଯେତେବେଳେ ଆପଣ ଲିଷ୍ଟ୍ ରୁ ଅନ୍ୟ ପିଲା ବାଛିବେ, ଗ୍ରାଫ୍ ବଦଳିବ
+    document.getElementById('studentDropdown').addEventListener('change', function() {
+        loadStudentChart(this.value);
+    });
+
+    // ୩. ଗ୍ରାଫ୍ ତିଆରି କରିବାର ମୁଖ୍ୟ ଫଙ୍କସନ୍
+    function loadStudentChart(studentId) {
+        fetch('/api/student/${studentId}')
+            .then(response => response.json())
+            .then(data => {
+                const subjects = [];
+                const marks = [];
+                
+                data.forEach(row => {
+                    subjects.push(row.subject_name);
+                    marks.push(row.marks_obtained);
+                });
+
+                // ଯଦି ଆଗରୁ ଗୋଟିଏ ଗ୍ରାଫ୍ ଅଛି, ତାକୁ ଲିଭାଇ ନୂଆ ତିଆରି କରିବା
+                if (myChart != null) {
+                    myChart.destroy();
+                }
+
+                const ctx = document.getElementById('marksChart').getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: subjects,
+                        datasets: [{
+                            label: 'Marks Obtained out of 100',
+                            data: marks,
+                            backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)'],
+                            borderColor: ['rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)'],
+                            borderWidth: 1,
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+            });
+    }
+</script>
+
+</body>
+</html>
