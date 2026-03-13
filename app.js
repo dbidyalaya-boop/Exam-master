@@ -1,71 +1,94 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const express = require('express');
+const { Pool } = require('pg');
 const cors = require('cors');
-const { Client } = require('pg');
+const path = require('path');
 
 const app = express();
+app.use(express.json());
 app.use(cors());
-app.use(express.json()); // ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ: ଫର୍ମ ରୁ ଆସୁଥିବା ନୂଆ ଡାଟା ପଢ଼ିବା ପାଇଁ ଏହା ଆବଶ୍ୟକ!
 app.use(express.static('public'));
-const client = new Client({
-  host: 'pg-1522e620-dbidyalaya-b6a8.f.aivencloud.com',
-  port: 26768,
-  user: 'avnadmin',
-  password: 'AVNS_TSZkJ4FBLbluzwjGbnB',
-  database: 'defaultdb',
-  ssl: { rejectUnauthorized: false }
+
+const pool = new Pool({
+    connectionString: "ଆପଣଙ୍କ_Aiven_ConnectionString_ଏଠାରେ_ରଖନ୍ତୁ",
+    ssl: { rejectUnauthorized: false }
 });
 
-client.connect();
-
-// ୧. ପ୍ରିନ୍ସିପାଲ୍ ଡ୍ୟାସବୋର୍ଡ API
-app.get('/api/reports', async (req, res) => {
-  const reportQuery = `
-    SELECT t.name AS teacher_name, s.subject_name AS subject, AVG((m.marks_obtained * 100.0) / m.total_marks) AS average_percentage
-    FROM Teachers t JOIN Teacher_Subject_Mapping tsm ON t.teacher_id = tsm.teacher_id
-    JOIN Subjects s ON tsm.subject_id = s.subject_id JOIN Marks m ON s.subject_id = m.subject_id
-    GROUP BY t.teacher_id, t.name, s.subject_name;
-  `;
-  try { const db_res = await client.query(reportQuery); res.json(db_res.rows); } catch (err) { res.status(500).send("Error"); }
-});
-
-// ୨. ଡ୍ରପ୍-ଡାଉନ୍ ପାଇଁ ପିଲାଙ୍କ ଲିଷ୍ଟ୍ API
+// ୧. ସବୁ ପିଲାଙ୍କ ଲିଷ୍ଟ୍ ପାଇଁ API
 app.get('/api/students', async (req, res) => {
-  try { const db_res = await client.query('SELECT student_id, name FROM Students ORDER BY student_id ASC'); res.json(db_res.rows); } catch (err) { res.status(500).send("Error"); }
+    try {
+        const result = await pool.query('SELECT * FROM Students ORDER BY name ASC');
+        res.json(result.rows);
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// ୩. ଗ୍ରାଫ୍ ପାଇଁ ଗୋଟିଏ ପିଲାର ମାର୍କ API
-app.get('/api/student/:id', async (req, res) => {
-  const studentId = req.params.id;
-  const studentQuery = `SELECT s.subject_name, m.marks_obtained FROM Marks m JOIN Subjects s ON m.subject_id = s.subject_id WHERE m.student_id = $1;`;
-  try { const db_res = await client.query(studentQuery, [studentId]); res.json(db_res.rows); } catch (err) { res.status(500).send("Error"); }
+// ୨. ସବୁ ବିଷୟର ଲିଷ୍ଟ୍ ପାଇଁ API (ନୂଆ)
+app.get('/api/subjects', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM Subjects');
+        res.json(result.rows);
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// ୪. ନୂଆ ପିଲା ଏବଂ ମାର୍କ ଯୋଡ଼ିବା ପାଇଁ ନୂଆ POST API
-app.post('/api/add-student', async (req, res) => {
-  const { name, roll_no, class_name, math_marks, science_marks } = req.body;
-
-  try {
-    // ପ୍ରଥମେ Students ଟେବୁଲ୍‌ରେ ପିଲାର ନାମ ସେଭ୍ କରିବା ଏବଂ ତାର ନୂଆ ID ଆଣିବା
-    const studentResult = await client.query(
-      'INSERT INTO Students (name, roll_no, class_name) VALUES ($1, $2, $3) RETURNING student_id',
-      [name, roll_no, class_name]
-    );
-    const newStudentId = studentResult.rows[0].student_id;
-
-    // ସେହି ନୂଆ ID ବ୍ୟବହାର କରି ଗଣିତ (subject_id=1) ଏବଂ ବିଜ୍ଞାନ (subject_id=2) ର ମାର୍କ ସେଭ୍ କରିବା
-    await client.query(
-      'INSERT INTO Marks (student_id, exam_id, subject_id, marks_obtained, total_marks) VALUES ($1, 1, 1, $2, 100), ($1, 1, 2, $3, 100)',
-      [newStudentId, math_marks, science_marks]
-    );
-
-    res.json({ message: "Success" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Server Error");
-  }
+// ୩. ପିଲାଙ୍କୁ ବିଷୟ Assign କରିବା ପାଇଁ API (ନୂଆ)
+app.post('/api/assign-subject', async (req, res) => {
+    const { student_id, subject_id } = req.body;
+    try {
+        await pool.query('INSERT INTO Student_Subjects (student_id, subject_id) VALUES ($1, $2)', [student_id, subject_id]);
+        res.send("✅ ବିଷୟ ସଫଳତାର ସହ ବଣ୍ଟନ କରାଗଲା!");
+    } catch (err) { res.status(500).send(err.message); }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => { 
-  console.log('✅ ସର୍ଭର ଲାଇଭ୍ ହେବାକୁ ପ୍ରସ୍ତୁତ ଅଛି ଏବଂ ପୋର୍ଟ: ' + PORT + ' ରେ ଚାଲୁଅଛି!'); 
+app.listen(PORT, () => {
+    console.log(`🚀 ସର୍ଭର http://localhost:${PORT} ରେ ଚାଲୁଅଛି!`);
+});// ପିଲାଙ୍କ ଆଡମିଶନ ପାଇଁ API
+app.post('/api/add-student', async (req, res) => {
+    const { name, gender, phone } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO Students (name, gender, phone) VALUES ($1, $2, $3)', 
+            [name, gender, phone]
+        );
+        res.send("✅ ପିଲାଙ୍କ ଡାଟା ସଫଳତାର ସହ ସେଭ୍ ହେଲା!");
+    } catch (err) { 
+        console.error(err);
+        res.status(500).send("Error: " + err.message); 
+    }
+});// ମାର୍କ ଏଣ୍ଟ୍ରି କରିବା ପାଇଁ API
+app.post('/api/add-marks', async (req, res) => {
+    const { student_id, subject_id, marks } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO Exam_Marks (student_id, subject_id, marks_obtained) VALUES ($1, $2, $3)',
+            [student_id, subject_id, marks]
+        );
+        res.send("✅ ମାର୍କ ସଫଳତାର ସହ ସେଭ୍ ହେଲା!");
+    } catch (err) { res.status(500).send(err.message); }
+});
+
+// ଡ୍ୟାସବୋର୍ଡ ପାଇଁ ସବୁ ପିଲାଙ୍କ ମାର୍କ ତଥ୍ୟ ପାଇବା API
+app.get('/api/dashboard-stats', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT s.name, sub.subject_name, m.marks_obtained 
+            FROM Exam_Marks m
+            JOIN Students s ON m.student_id = s.student_id
+            JOIN Subjects sub ON m.subject_id = sub.subject_id
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).send(err.message); }
+});app.get('/api/dashboard-stats', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT s.name, sub.subject_name, m.marks_obtained 
+            FROM Exam_Marks m
+            JOIN Students s ON m.student_id = s.student_id
+            JOIN Subjects sub ON m.subject_id = sub.subject_id
+            ORDER BY m.exam_date DESC LIMIT 10
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
 });
