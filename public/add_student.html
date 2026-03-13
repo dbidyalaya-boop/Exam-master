@@ -60,7 +60,7 @@
         };
 
         // API କୁ ଡାଟା ପଠାଇବା
-        fetch('http://localhost:3000/api/add-student', {
+        fetch('/api/add-student')
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newStudentData)
