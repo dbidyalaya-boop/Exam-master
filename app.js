@@ -73,4 +73,13 @@ app.get('/api/subjects', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 ସର୍ଭର http://localhost:${PORT} ରେ ଚାଲୁଅଛି!`);
+});// ନୂଆ ପିଲାଙ୍କ ନାମ ଯୋଡ଼ିବା ପାଇଁ API
+app.post('/api/add-student', async (req, res) => {
+    const { name } = req.body;
+    try {
+        await pool.query('INSERT INTO Students (name) VALUES ($1)', [name]);
+        res.send("ପିଲାଙ୍କ ନାମ ସଫଳତାର ସହ ସେଭ୍ ହେଲା!");
+    } catch (err) { 
+        res.status(500).send(err.message); 
+    }
 });
